@@ -1,4 +1,17 @@
 from pathlib import Path
+import docdatabase
+import os
+
+
+# a function that checks the status of the database in the system
+def check_database():
+    homefolder = Path.home()
+    dbpath = homefolder / ".cache" / "pardus-docsearch"  # location where the database will be placed
+    if not os.path.exists(dbpath):
+      os.makedirs(dbpath)
+    os.chdir(dbpath)
+    docdatabase.init_storage(dbpath / "docdatabase.db")  # a database is being created at the specified location
+
 
 # a function that lists all files on the computer
 def files_list():
