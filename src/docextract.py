@@ -11,6 +11,12 @@ def file_hash_bytes(data: bytes):
 
 # ---- Converting TXT files to text ----
 def index_txt_bytes(filename, data, conn, cur):
+    # the existence of the same data in the database is checked
+    srcname = cur.execute("SELECT source_name FROM documents").fetchall()
+    srcname = [r[0] for r in srcname]
+    if filename in srcname:
+      return False
+
     TXT_LINES_PER_CHUNK = 10
     TXT_OVERLAP = 2
     lines = data.decode("utf-8", errors="ignore").splitlines()  # data arriving in binaries is being decoded
@@ -29,6 +35,12 @@ def index_txt_bytes(filename, data, conn, cur):
 
 # ---- Converting PDF files to text ----
 def index_pdf_bytes(filename, data, conn, cur):
+    # the existence of the same data in the database is checked
+    srcname = cur.execute("SELECT source_name FROM documents").fetchall()
+    srcname = [r[0] for r in srcname]
+    if filename in srcname:
+      return False
+
     PDF_CHARS_PER_CHUNK = 800
     PDF_OVERLAP = 200
     tmp_path = "/tmp/tmp_upload.pdf"
@@ -54,4 +66,5 @@ def index_pdf_bytes(filename, data, conn, cur):
                         conn.commit()
                     i += PDF_CHARS_PER_CHUNK - PDF_OVERLAP
                 continue
+    return True
 
