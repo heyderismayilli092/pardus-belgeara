@@ -1,6 +1,7 @@
 from pathlib import Path
 import docdatabase
 import docextract
+import docsearch
 import os
 
 
@@ -16,7 +17,7 @@ def check_database():
 
 # a function that lists all files on the computer
 def files_list():
-    homefolder = Path.home()
+    homefolder = Path.home() / "collectionsgpt"  # şimdilik
 
     flist = []
     formats = [".txt", ".pdf"]
@@ -50,4 +51,18 @@ def embedfile(file):
         docextract.index_txt_bytes(file, data, conn, cur)
 
     return True
+
+
+# this function searches the incoming data and returns the relevant output
+def search(content):
+    find_sources = []
+    homefolder = Path.home()
+    dbpath = homefolder / ".cache" / "pardus-docsearch" / "docdatabase.db"  # location where the database will be placed
+    output = docsearch.bm25_search(dbpath, content)  # searching for the sent text
+    for f in output["results"]:
+        if not f["source"] in [d["source"] for d in find_sources]:  # a poll is being conducted to add the same result to the list only once
+          find_sources.append({"source": f["source"], "score": f["score"], "chunk": f["chunk"]})
+
+    return find_sources
+
 
