@@ -115,7 +115,7 @@ class pardusdocsearch:
 
             filename = os.path.basename(doc_path)
             tooltip_txt = _("File full path: ")+doc_path
-            row = self.create_row(filename, doc_path, tooltip_txt)
+            row = self.create_row(filename, doc_path, tooltip_txt, "0")  # regardless of all sources, page number 0 is returned
             self.listbox.add(row)
 
         # the main screen will not be accessed until the result of both operations is True, and `return True` will continue to run
@@ -128,7 +128,7 @@ class pardusdocsearch:
 
 
     # row function to be created for each data point
-    def create_row(self, filename, fullpath, tooltip_txt):
+    def create_row(self, filename, fullpath, tooltip_txt, pagenum):
         row_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
 
         # ICON box
@@ -156,7 +156,7 @@ class pardusdocsearch:
         button_opndir = Gtk.Button(label=_("Open in directory"))
 
         # -------Signals-------
-        button_open.connect("clicked", self.on_open_file, fullpath)
+        button_open.connect("clicked", self.on_open_file, fullpath, pagenum)
         button_opndir.connect("clicked", self.on_open_in_directory, fullpath)
         # ---------------------
 
@@ -177,8 +177,11 @@ class pardusdocsearch:
 
 
     # file open
-    def on_open_file(self, button, fullpath):
-        subprocess.run(["xdg-open", fullpath])
+    def on_open_file(self, button, fullpath, pagenum):
+        if fullpath[-3:] == "pdf":
+          subprocess.run(["evince", "-i", pagenum, fullpath])  # in the Pardus operating system, `evince` is installed as the document viewer software
+        else:
+          subprocess.run(["xdg-open", fullpath])
 
 
     # file open in directory
@@ -202,7 +205,10 @@ class pardusdocsearch:
         # writing the results to a listbox object
         for f in output:
             srcname = os.path.basename(f["source"])
-            row = self.create_row(srcname, f["source"], _("Content:\n")+f["chunk"])
+            if srcname[-3:] == "pdf":
+                row = self.create_row(srcname, f["source"], _("Content:\n")+f["chunk"], str(f["pagenum"]))  # the function receives the page number of the output found in the search results (PDF files)
+            else:
+                row = self.create_row(srcname, f["source"], _("Content:\n")+f["chunk"], "0")
             self.listbox.add(row)
         self.listbox.show_all()
         self.listagain_btn.show()  # to return to the entire file list after the search is complete, the button must be active
@@ -216,7 +222,7 @@ class pardusdocsearch:
 
         for f in files_list():  # files_list() --- (may be CPU/IO bound)
             tooltip_txt = _("File full path: ")+f
-            row = self.create_row(os.path.basename(f), f, tooltip_txt)
+            row = self.create_row(os.path.basename(f), f, tooltip_txt, "0")  # regardless of all sources, page number 0 is returned
             self.listbox.add(row)
         self.listbox.show_all()
         self.listagain_btn.hide()  # the button doesn't need to appear after all files are listed
