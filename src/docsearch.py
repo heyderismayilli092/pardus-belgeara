@@ -23,7 +23,8 @@ def load_bm25(db_path):
 
 
 # search with BM25
-def bm25_search(db_path, query, top_k):
+def bm25_search(db_path, query):
+    top_k = 50  # the number of most relevant results to be returned is set to 50
     conn, rows, bm25 = load_bm25(db_path)
 
     tokens = query.lower().split()
