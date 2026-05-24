@@ -33,8 +33,8 @@ class pardusdocsearch:
         self.mainstack      = self.builder.get_object("main_stack")
         self.scrolled_window = self.builder.get_object("scrolled_window")  # scrolled window
         self.status_label    = self.builder.get_object("status_label")  # status label
-        self.warning_label    = self.builder.get_object("warning_label")  # warning label
-        self.warning_label.set_label(_("The process of writing files from your computer to the database may take a long time\nDo not close the screen until the process is complete"))  # warning message is being printed
+        self.warning_label1    = self.builder.get_object("warning_label1")  # warning label
+        self.warning_label2    = self.builder.get_object("warning_label2")  # warning label
         self.searchbutton    = self.builder.get_object("searchbutton")  # search button
         self.listagain_btn   = self.builder.get_object("list_again")  # list again button
         self.search_entry    = self.builder.get_object("search_entry")  # search entry box
@@ -49,8 +49,11 @@ class pardusdocsearch:
         self.listagain_btn.connect("clicked", self.on_list_again)
         self.mainwindow.show_all()
 
+        # first steps to take before the software screen appears
         check_database()
         self.listagain_btn.hide()
+        self.warning_label1.set_label(_("The process of writing files from your computer to the database may take a long time\nDo not close the screen until the process is complete"))  # warning message is being printed
+        self.warning_label2.hide()  # hide warning label
         self.mainstack.set_visible_child_name("page0")
         GLib.idle_add(self.start_background_once)  # the process will run in the background immediately after the application starts
 
@@ -186,6 +189,11 @@ class pardusdocsearch:
     # search button
     def on_search(self, button):
         searchcontent = self.search_entry.get_text()
+        if len(searchcontent) == 0:
+            self.warning_label2.show()
+            self.warning_label2.set_label("Enter some text to search!")
+            return False
+        self.warning_label2.hide()  # it is closed if an error message is displayed
         output = search(searchcontent)  # searching content
         # clearing a populated listbox object
         for row in self.listbox.get_children():
