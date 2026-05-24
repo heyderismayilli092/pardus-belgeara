@@ -123,7 +123,10 @@ class pardusdocsearch:
         row_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
 
         # ICON box
-        image = Gtk.Image.new_from_icon_name("text-x-generic", Gtk.IconSize.BUTTON)
+        if filename[-3:] == "pdf":
+          image = Gtk.Image.new_from_icon_name("application-pdf", Gtk.IconSize.BUTTON)
+        elif filename[-3:] == "txt":
+          image = Gtk.Image.new_from_icon_name("text-x-generic", Gtk.IconSize.BUTTON)
         image.set_halign(Gtk.Align.START)
 
         # TEXT box and labels
