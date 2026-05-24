@@ -36,6 +36,7 @@ class pardusdocsearch:
         self.warning_label    = self.builder.get_object("warning_label")  # warning label
         self.warning_label.set_label(_("The process of writing files from your computer to the database may take a long time\nDo not close the screen until the process is complete"))  # warning message is being printed
         self.searchbutton    = self.builder.get_object("searchbutton")  # search button
+        self.listagain_btn   = self.builder.get_object("list_again")  # list again button
         self.search_entry    = self.builder.get_object("search_entry")  # search entry box
         self.search_entry.set_width_chars(40)  # length of the text box
         self.search_entry.set_placeholder_text(_("Enter the content:"))  # placeholder
@@ -45,9 +46,11 @@ class pardusdocsearch:
         # Main Window
         self.mainwindow.connect("destroy", self._on_destroy)
         self.searchbutton.connect("clicked", self.on_search)
+        self.listagain_btn.connect("clicked", self.on_list_again)
         self.mainwindow.show_all()
 
         check_database()
+        self.listagain_btn.hide()
         self.mainstack.set_visible_child_name("page0")
         GLib.idle_add(self.start_background_once)  # the process will run in the background immediately after the application starts
 
@@ -71,6 +74,7 @@ class pardusdocsearch:
             GLib.timeout_add(100, self._consume_queue)  # consume at 100 ms intervals
         return False
 
+
     # listing files, printing to database
     def docs_list_process(self):
         for f in files_list():  # files_list() --- (may be CPU/IO bound)
@@ -80,6 +84,7 @@ class pardusdocsearch:
         # report to the main cycle that production is complete
         self.doc_queue.put(None)
         self.db_queue.put(None)
+
 
     # write operation to the database
     def db_embed_worker(self):
@@ -117,7 +122,6 @@ class pardusdocsearch:
             return False
 
         return True
-
 
 
     # row function to be created for each data point
@@ -173,9 +177,11 @@ class pardusdocsearch:
     def on_open_file(self, button, fullpath):
         subprocess.run(["xdg-open", fullpath])
 
+
     # file open in directory
     def on_open_in_directory(self, button, fullpath):
         subprocess.run(["thunar", fullpath])
+
 
     # search button
     def on_search(self, button):
@@ -184,12 +190,28 @@ class pardusdocsearch:
         # clearing a populated listbox object
         for row in self.listbox.get_children():
           row.destroy()
+
         # writing the results to a listbox object
         for f in output:
             srcname = os.path.basename(f["source"])
             row = self.create_row(srcname, f["source"], _("Content:\n")+f["chunk"])
             self.listbox.add(row)
         self.listbox.show_all()
+        self.listagain_btn.show()  # to return to the entire file list after the search is complete, the button must be active
+
+
+    # list again button
+    def on_list_again(self, button):
+        # clearing a populated listbox object
+        for row in self.listbox.get_children():
+          row.destroy()
+
+        for f in files_list():  # files_list() --- (may be CPU/IO bound)
+            tooltip_txt = _("File full path: ")+f
+            row = self.create_row(os.path.basename(f), f, tooltip_txt)
+            self.listbox.add(row)
+        self.listbox.show_all()
+        self.listagain_btn.hide()  # the button doesn't need to appear after all files are listed
 
 
     def _on_destroy(self, widget):
