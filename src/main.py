@@ -13,8 +13,6 @@ import sys
 import time
 import locale
 from locale import gettext as _
-
-import docdatabase
 from docsearch_functions import files_list, check_database, embedfile, search
 
 locale.bindtextdomain('pardus-docsearch', '/usr/share/locale')
@@ -53,6 +51,8 @@ class pardusdocsearch:
 
         # first steps to take before the software screen appears
         check_database()
+        homefolder = Path.home()
+        dbpath = homefolder / ".cache" / "pardus-docsearch" / "docdatabase.db"  # location where the database will be placed
         self.listagain_btn.hide()
         self.warning_label1.set_label(_("The process of writing files from your computer to the database may take a long time\nDo not close the screen until the process is complete"))  # warning message is being printed
         self.warning_label2.hide()  # hide warning label
@@ -69,6 +69,7 @@ class pardusdocsearch:
 
 
     def start_background_once(self):
+        conn, cur = docdatabase.get_conn(dbpath)
         # start worker thread
         threading.Thread(target=self.docs_list_process, daemon=True).start()  # listing files, printing to database
         threading.Thread(target=self.db_embed_worker, daemon=True).start()  # write operation to the database
@@ -93,12 +94,20 @@ class pardusdocsearch:
 
     # write operation to the database
     def db_embed_worker(self):
+        srcpath = cur.execute("SELECT source_name FROM documents").fetchall()
+        srcpath = [r[0] for r in srcpath]
+
         while True:
             doc_path = self.db_queue.get()  # the process will not proceed to other operations until data arrives from the db_queue queue
             if doc_path is None:
                 break
-            embedfile(doc_path)  # the process of writing to the database is being performed
+            # the existence of the same data in the database is checked
+            if doc_path in srcpath:
+                continue
+            else:
+                embedfile(doc_path)  # the process of writing to the database is being performed
             self.status_label.set_text(_("Writing:\n")+doc_path)
+        conn.commit()
         self.embed_done = True
 
 

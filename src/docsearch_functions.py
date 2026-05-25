@@ -4,15 +4,16 @@ import docextract
 import docsearch
 import os
 
+homefolder = Path.home()
+dbpath = homefolder / ".cache" / "pardus-docsearch" / "docdatabase.db"  # location where the database will be placed
+
 
 # a function that checks the status of the database in the system
 def check_database():
-    homefolder = Path.home()
-    dbpath = homefolder / ".cache" / "pardus-docsearch"  # location where the database will be placed
     if not os.path.exists(dbpath):
       os.makedirs(dbpath)
     os.chdir(dbpath)
-    docdatabase.create_database(dbpath / "docdatabase.db")  # a database is being created at the specified location
+    docdatabase.create_database(dbpath)  # a database is being created at the specified location
 
 
 # a function that lists all files on the computer
@@ -51,8 +52,6 @@ def embedfile(file):
 # this function searches the incoming data and returns the relevant output
 def search(content):
     find_sources = []
-    homefolder = Path.home()
-    dbpath = homefolder / ".cache" / "pardus-docsearch" / "docdatabase.db"  # location where the database will be placed
     output = docsearch.bm25_search(dbpath, content)  # searching for the sent text
     for f in output["results"]:
         if not f["source"] in [d["source"] for d in find_sources]:  # a poll is being conducted to add the same result to the list only once
@@ -62,5 +61,4 @@ def search(content):
             find_sources.append({"source": f["source"], "score": f["score"], "chunk": f["chunk"]})
 
     return find_sources
-
 
