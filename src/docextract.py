@@ -56,23 +56,26 @@ def index_pdf_bytes(filename, data):
         f.write(data)
     extracted_any = False
     # ---------- primary: pdfplumber ----------
-    with pdfplumber.open(tmp_path) as pdf:
-        for page_no, page in enumerate(pdf.pages, start=1):
-            text = None
-            try:
-                text = page.extract_text(x_tolerance=2, y_tolerance=2, layout=True)
-            except Exception:
-                   pass
-            # If there is text, it is obtained in fragments
-            if text and len(text.strip()) >= 20:
-                extracted_any = True
-                i = 0
-                while i < len(text):  # the process of processing parts and printing them to the database
-                    chunk = text[i:i + PDF_CHARS_PER_CHUNK].strip()
-                    if chunk:
-                        docdatabase.insert_row(cur, filename, "pdf", page_no, None, None, chunk)  # writing to the database
-                    i += PDF_CHARS_PER_CHUNK - PDF_OVERLAP
-                continue
-    conn.commit()
+    try:
+      with pdfplumber.open(tmp_path) as pdf:
+          for page_no, page in enumerate(pdf.pages, start=1):
+              text = None
+              try:
+                  text = page.extract_text(x_tolerance=2, y_tolerance=2, layout=True)
+              except Exception:
+                     pass
+              # If there is text, it is obtained in fragments
+              if text and len(text.strip()) >= 20:
+                  extracted_any = True
+                  i = 0
+                  while i < len(text):  # the process of processing parts and printing them to the database
+                      chunk = text[i:i + PDF_CHARS_PER_CHUNK].strip()
+                      if chunk:
+                          docdatabase.insert_row(cur, filename, "pdf", page_no, None, None, chunk)  # writing to the database
+                      i += PDF_CHARS_PER_CHUNK - PDF_OVERLAP
+                  continue
+      conn.commit()
+    except pdfplumber.utils.exceptions.PdfminerException:
+        return False
     return True
 
