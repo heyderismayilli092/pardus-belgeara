@@ -1,4 +1,5 @@
 rank-bm25
 pyPDF2
 pymupdf
+fitz
 pdfplumber
