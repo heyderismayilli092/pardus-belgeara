@@ -1,6 +1,7 @@
 import pdfplumber
 import hashlib
 import docdatabase
+import fitz
 from PyPDF2 import PdfReader
 from pathlib import Path
 
@@ -12,16 +13,15 @@ dbpath = homefolder / ".cache" / "pardus-docsearch" / "docdatabase.db"
 def file_hash_bytes(data: bytes):
     return hashlib.sha256(data).hexdigest()
 
+# Useless page filter for BM25
+def is_bad_page_fast(page_text):
+    return len(page_text.strip()) < 20
+
+
 
 # ---- Converting TXT files to text ----
 def index_txt_bytes(filename, data):
     conn, cur = docdatabase.get_conn(dbpath)
-
-    # the existence of the same data in the database is checked
-    srcname = cur.execute("SELECT source_name FROM documents").fetchall()
-    srcname = [r[0] for r in srcname]
-    if filename in srcname:
-      return False
 
     TXT_LINES_PER_CHUNK = 10
     TXT_OVERLAP = 2
@@ -35,47 +35,62 @@ def index_txt_bytes(filename, data):
 
         if text:
             docdatabase.insert_row(cur, filename, "txt", None, start + 1, end, text)  # writing to the database
-            conn.commit()
         i += TXT_LINES_PER_CHUNK - TXT_OVERLAP
+    conn.commit()
 
 
 # ---- Converting PDF files to text ----
 def index_pdf_bytes(filename, data):
     conn, cur = docdatabase.get_conn(dbpath)
 
-    # the existence of the same data in the database is checked
-    srcname = cur.execute("SELECT source_name FROM documents").fetchall()
-    srcname = [r[0] for r in srcname]
-    if filename in srcname:
-      return False
-
     PDF_CHARS_PER_CHUNK = 800
     PDF_OVERLAP = 200
+
     tmp_path = "/tmp/tmp_upload.pdf"
     with open(tmp_path, "wb") as f:
         f.write(data)
+
     extracted_any = False
-    # ---------- primary: pdfplumber ----------
+
+    # FAST FILTER -- the text-containing pages of the PDF file to be processed are filtered using 'PyMuPDF' software
+    doc = fitz.open(tmp_path)
+    valid_pages = set()
+
+    for i in range(len(doc)):
+        try:
+            text = doc[i].get_text("text")
+            if not is_bad_page_fast(text):
+                valid_pages.add(i + 1)
+        except Exception:
+            continue
+
+    # Parse Process
     try:
-      with pdfplumber.open(tmp_path) as pdf:
-          for page_no, page in enumerate(pdf.pages, start=1):
-              text = None
-              try:
-                  text = page.extract_text(x_tolerance=2, y_tolerance=2, layout=True)
-              except Exception:
-                     pass
-              # If there is text, it is obtained in fragments
-              if text and len(text.strip()) >= 20:
-                  extracted_any = True
-                  i = 0
-                  while i < len(text):  # the process of processing parts and printing them to the database
-                      chunk = text[i:i + PDF_CHARS_PER_CHUNK].strip()
-                      if chunk:
-                          docdatabase.insert_row(cur, filename, "pdf", page_no, None, None, chunk)  # writing to the database
-                      i += PDF_CHARS_PER_CHUNK - PDF_OVERLAP
-                  continue
-      conn.commit()
+        with pdfplumber.open(tmp_path) as pdf:
+            for page_no, page in enumerate(pdf.pages, start=1):
+                # fast skip
+                if page_no not in valid_pages:  # if the page is not among the pages to be processed, it is skipped
+                    continue
+
+                text = None
+
+                try:
+                    text = page.extract_text(x_tolerance=2, y_tolerance=2, layout=True)
+                except Exception:
+                    pass
+
+                if text and len(text.strip()) >= 20:
+                    extracted_any = True
+                    i = 0
+                    while i < len(text):
+                        chunk = text[i:i + PDF_CHARS_PER_CHUNK].strip()
+                        if chunk:
+                            docdatabase.insert_row(cur, filename, "pdf", page_no, None, None, chunk)
+                        i += PDF_CHARS_PER_CHUNK - PDF_OVERLAP
+        conn.commit()
+
     except pdfplumber.utils.exceptions.PdfminerException:
         return False
+
     return True
 
